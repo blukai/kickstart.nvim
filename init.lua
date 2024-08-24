@@ -102,10 +102,12 @@ vim.g.have_nerd_font = false
 vim.opt.number = true
 -- You can also add relative line numbers, to help with jumping.
 --  Experiment for yourself to see if you like it!
--- vim.opt.relativenumber = true
+-- NOTE(blukai): enabled relative line numbers
+vim.opt.relativenumber = true
 
 -- Enable mouse mode, can be useful for resizing splits for example!
-vim.opt.mouse = 'a'
+-- NOTE(blukai): disabled mouse (was set to 'a')
+vim.opt.mouse = ''
 
 -- Don't show the mode, since it's already in the status line
 vim.opt.showmode = false
@@ -142,8 +144,9 @@ vim.opt.splitbelow = true
 -- Sets how neovim will display certain whitespace characters in the editor.
 --  See `:help 'list'`
 --  and `:help 'listchars'`
-vim.opt.list = true
-vim.opt.listchars = { tab = '» ', trail = '·', nbsp = '␣' }
+-- NOTE(blukai): disabled this, adds too much noise
+-- vim.opt.list = true
+-- vim.opt.listchars = { tab = '» ', trail = '·', nbsp = '␣' }
 
 -- Preview substitutions live, as you type!
 vim.opt.inccommand = 'split'
@@ -176,10 +179,12 @@ vim.keymap.set('n', '<leader>q', vim.diagnostic.setloclist, { desc = 'Open diagn
 vim.keymap.set('t', '<Esc><Esc>', '<C-\\><C-n>', { desc = 'Exit terminal mode' })
 
 -- TIP: Disable arrow keys in normal mode
--- vim.keymap.set('n', '<left>', '<cmd>echo "Use h to move!!"<CR>')
--- vim.keymap.set('n', '<right>', '<cmd>echo "Use l to move!!"<CR>')
--- vim.keymap.set('n', '<up>', '<cmd>echo "Use k to move!!"<CR>')
--- vim.keymap.set('n', '<down>', '<cmd>echo "Use j to move!!"<CR>')
+-- NOTE(blukai): uncommented following lines; also note that i did not find a way to move
+-- cursor left and right without arrow keys in command mode
+vim.keymap.set('n', '<left>', '<cmd>echo "Use h to move!!"<CR>')
+vim.keymap.set('n', '<right>', '<cmd>echo "Use l to move!!"<CR>')
+vim.keymap.set('n', '<up>', '<cmd>echo "Use k to move!!"<CR>')
+vim.keymap.set('n', '<down>', '<cmd>echo "Use j to move!!"<CR>')
 
 -- Keybinds to make split navigation easier.
 --  Use CTRL+<hjkl> to switch between windows
@@ -204,6 +209,11 @@ vim.api.nvim_create_autocmd('TextYankPost', {
   end,
 })
 
+-- NOTE(blukai): disable obnoxious zig splits; see
+-- https://github.com/zigtools/zls/issues/856#issuecomment-1511528925
+vim.g.zig_fmt_parse_errors = 0
+vim.g.zig_fmt_autosave = 0
+
 -- [[ Install `lazy.nvim` plugin manager ]]
 --    See `:help lazy.nvim.txt` or https://github.com/folke/lazy.nvim for more info
 local lazypath = vim.fn.stdpath 'data' .. '/lazy/lazy.nvim'
@@ -212,6 +222,18 @@ if not vim.loop.fs_stat(lazypath) then
   vim.fn.system { 'git', 'clone', '--filter=blob:none', '--branch=stable', lazyrepo, lazypath }
 end ---@diagnostic disable-next-line: undefined-field
 vim.opt.rtp:prepend(lazypath)
+
+-- NOTE(blukai): this is a part of a fix for c-n c-p navigation within the
+-- completion popup.
+-- https://sourcegraph.com/github.com/alfunx/.dotfiles@2d22e8de8a63432909c005991698b41ab39b6f7f/-/blob/.vim/lua/config_cmp.lua?L16
+local function has_words_before()
+  local line, col = unpack(vim.api.nvim_win_get_cursor(0))
+  return col ~= 0 and vim.api.nvim_buf_get_lines(0, line - 1, line, true)[1]:sub(col, col):match '%s' == nil
+end
+
+-- NOTE(blukai): this disables automatic line wripping during typing, super
+-- annoying! do it manually with gq.
+vim.opt.formatoptions = vim.opt.formatoptions - { 't', 'c' }
 
 -- [[ Configure and install plugins ]]
 --
@@ -245,18 +267,19 @@ require('lazy').setup({
   --    require('gitsigns').setup({ ... })
   --
   -- See `:help gitsigns` to understand what the configuration keys do
-  { -- Adds git related signs to the gutter, as well as utilities for managing changes
-    'lewis6991/gitsigns.nvim',
-    opts = {
-      signs = {
-        add = { text = '+' },
-        change = { text = '~' },
-        delete = { text = '_' },
-        topdelete = { text = '‾' },
-        changedelete = { text = '~' },
-      },
-    },
-  },
+  -- NOTE(blukai): commented out following extension because what it produces is a noise to me
+  -- { -- Adds git related signs to the gutter, as well as utilities for managing changes
+  --   'lewis6991/gitsigns.nvim',
+  --   opts = {
+  --     signs = {
+  --       add = { text = '+' },
+  --       change = { text = '~' },
+  --       delete = { text = '_' },
+  --       topdelete = { text = '‾' },
+  --       changedelete = { text = '~' },
+  --     },
+  --   },
+  -- },
 
   -- NOTE: Plugins can also be configured to run Lua code when they are loaded.
   --
@@ -277,15 +300,54 @@ require('lazy').setup({
     'folke/which-key.nvim',
     event = 'VimEnter', -- Sets the loading event to 'VimEnter'
     config = function() -- This is the function that runs, AFTER loading
-      require('which-key').setup()
+      require('which-key').setup {
+        icons = {
+          -- set icon mappings to true if you have a Nerd Font
+          mappings = vim.g.have_nerd_font,
+          -- If you are using a Nerd Font: set icons.keys to an empty table which will use the
+          -- default whick-key.nvim defined Nerd Font icons, otherwise define a string table
+          keys = vim.g.have_nerd_font and {} or {
+            Up = '<Up> ',
+            Down = '<Down> ',
+            Left = '<Left> ',
+            Right = '<Right> ',
+            C = '<C-…> ',
+            M = '<M-…> ',
+            D = '<D-…> ',
+            S = '<S-…> ',
+            CR = '<CR> ',
+            Esc = '<Esc> ',
+            ScrollWheelDown = '<ScrollWheelDown> ',
+            ScrollWheelUp = '<ScrollWheelUp> ',
+            NL = '<NL> ',
+            BS = '<BS> ',
+            Space = '<Space> ',
+            Tab = '<Tab> ',
+            F1 = '<F1>',
+            F2 = '<F2>',
+            F3 = '<F3>',
+            F4 = '<F4>',
+            F5 = '<F5>',
+            F6 = '<F6>',
+            F7 = '<F7>',
+            F8 = '<F8>',
+            F9 = '<F9>',
+            F10 = '<F10>',
+            F11 = '<F11>',
+            F12 = '<F12>',
+          },
+        },
+      }
 
       -- Document existing key chains
-      require('which-key').register {
-        ['<leader>c'] = { name = '[C]ode', _ = 'which_key_ignore' },
-        ['<leader>d'] = { name = '[D]ocument', _ = 'which_key_ignore' },
-        ['<leader>r'] = { name = '[R]ename', _ = 'which_key_ignore' },
-        ['<leader>s'] = { name = '[S]earch', _ = 'which_key_ignore' },
-        ['<leader>w'] = { name = '[W]orkspace', _ = 'which_key_ignore' },
+      require('which-key').add {
+        { '<leader>c', group = '[C]ode' },
+        { '<leader>d', group = '[D]ocument' },
+        { '<leader>r', group = '[R]ename' },
+        { '<leader>s', group = '[S]earch' },
+        { '<leader>w', group = '[W]orkspace' },
+        { '<leader>t', group = '[T]oggle' },
+        { '<leader>h', group = 'Git [H]unk', mode = { 'n', 'v' } },
       }
     end,
   },
@@ -320,6 +382,16 @@ require('lazy').setup({
 
       -- Useful for getting pretty icons, but requires a Nerd Font.
       { 'nvim-tree/nvim-web-devicons', enabled = vim.g.have_nerd_font },
+
+      -- NOTE(blukai): telescope-live-grep-args.nvim extension allows to use
+      -- ripgrep's arguments in search queries (for example specifying
+      -- extensions).
+      {
+        'nvim-telescope/telescope-live-grep-args.nvim',
+        -- This will not install any breaking changes.
+        -- For major updates, this must be adjusted manually.
+        version = '^1.0.0',
+      },
     },
     config = function()
       -- Telescope is a fuzzy finder that comes with a lot of different things that
@@ -357,6 +429,9 @@ require('lazy').setup({
           ['ui-select'] = {
             require('telescope.themes').get_dropdown(),
           },
+          -- NOTE(blukai): following line loads telescope-live-grep-args.nvim
+          -- extension
+          ['live_grep_args'] = {},
         },
       }
 
@@ -371,7 +446,10 @@ require('lazy').setup({
       vim.keymap.set('n', '<leader>sf', builtin.find_files, { desc = '[S]earch [F]iles' })
       vim.keymap.set('n', '<leader>ss', builtin.builtin, { desc = '[S]earch [S]elect Telescope' })
       vim.keymap.set('n', '<leader>sw', builtin.grep_string, { desc = '[S]earch current [W]ord' })
-      vim.keymap.set('n', '<leader>sg', builtin.live_grep, { desc = '[S]earch by [G]rep' })
+      -- NOTE(blukai): remap kickstart's default telescope grep to use extension
+      -- that allows to specify ripgrep args
+      -- vim.keymap.set('n', '<leader>sg', builtin.live_grep, { desc = '[S]earch by [G]rep' })
+      vim.keymap.set('n', '<leader>sg', ":lua require('telescope').extensions.live_grep_args.live_grep_args()<CR>")
       vim.keymap.set('n', '<leader>sd', builtin.diagnostics, { desc = '[S]earch [D]iagnostics' })
       vim.keymap.set('n', '<leader>sr', builtin.resume, { desc = '[S]earch [R]esume' })
       vim.keymap.set('n', '<leader>s.', builtin.oldfiles, { desc = '[S]earch Recent Files ("." for repeat)' })
@@ -538,10 +616,10 @@ require('lazy').setup({
       --  - settings (table): Override the default settings passed when initializing the server.
       --        For example, to see the options for `lua_ls`, you could go to: https://luals.github.io/wiki/settings/
       local servers = {
-        -- clangd = {},
-        -- gopls = {},
+        clangd = {},
+        gopls = {},
         -- pyright = {},
-        -- rust_analyzer = {},
+        rust_analyzer = {},
         -- ... etc. See `:help lspconfig-all` for a list of all the pre-configured LSPs
         --
         -- Some languages (like typescript) have entire language plugins that can be useful:
@@ -550,6 +628,9 @@ require('lazy').setup({
         -- But for many setups, the LSP (`tsserver`) will work just fine
         -- tsserver = {},
         --
+        -- NOTE(blukai): added this
+        -- wgsl_analyzer = {},
+        zls = {},
 
         lua_ls = {
           -- cmd = {...},
@@ -580,6 +661,12 @@ require('lazy').setup({
       local ensure_installed = vim.tbl_keys(servers or {})
       vim.list_extend(ensure_installed, {
         'stylua', -- Used to format Lua code
+        -- NOTE(blukai): added this; gofumpt can also be configured in gopls,
+        -- but not golines. see other related comment for more info (search for
+        -- golines).
+        'gofumpt',
+        'goimports',
+        'golines',
       })
       require('mason-tool-installer').setup { ensure_installed = ensure_installed }
 
@@ -617,7 +704,7 @@ require('lazy').setup({
         -- Disable "format_on_save lsp_fallback" for languages that don't
         -- have a well standardized coding style. You can add additional
         -- languages here or re-enable it for the disabled ones.
-        local disable_filetypes = { c = true, cpp = true }
+        local disable_filetypes = { c = true, cpp = true, wgsl = true }
         return {
           timeout_ms = 500,
           lsp_fallback = not disable_filetypes[vim.bo[bufnr].filetype],
@@ -631,6 +718,18 @@ require('lazy').setup({
         -- You can use a sub-list to tell conform to run *until* a formatter
         -- is found.
         -- javascript = { { "prettierd", "prettier" } },
+
+        -- NOTE(blukai): added this instead of relying on gopls. the issue with
+        -- gopls is that it runs go fmt (it has integration with gofumpt!),
+        -- goimports, but it does not integrate with golines.
+        go = { 'gofumpt', 'goimports', 'golines' },
+      },
+      formatters = {
+        golines = {
+          -- golines will use goimports as base formatter by default which is slow.
+          -- see https://github.com/segmentio/golines/issues/33
+          prepend_args = { '--base-formatter=gofumpt', '--ignore-generated', '--max-len=100' },
+        },
       },
     },
   },
@@ -683,17 +782,39 @@ require('lazy').setup({
             luasnip.lsp_expand(args.body)
           end,
         },
-        completion = { completeopt = 'menu,menuone,noinsert' },
+        completion = {
+          completeopt = 'menu,menuone,noinsert',
+          -- NOTE(blukai): disabled autocompletion because it's more in a way
+          -- then it's helpful really.
+          autocomplete = false,
+        },
 
         -- For an understanding of why these mappings were
         -- chosen, you will need to read `:help ins-completion`
         --
         -- No, but seriously. Please read `:help ins-completion`, it is really good!
         mapping = cmp.mapping.preset.insert {
-          -- Select the [n]ext item
-          ['<C-n>'] = cmp.mapping.select_next_item(),
-          -- Select the [p]revious item
-          ['<C-p>'] = cmp.mapping.select_prev_item(),
+          -- NOTE(blukai): when i disabled autocompletion c-n and c-p from
+          -- kickstart stopped working as expected. found this here
+          -- https://sourcegraph.com/github.com/alfunx/.dotfiles@2d22e8de8a63432909c005991698b41ab39b6f7f/-/blob/.vim/lua/config_cmp.lua?L42
+          ['<C-n>'] = cmp.mapping(function(fallback)
+            if cmp.visible() then
+              cmp.select_next_item()
+            elseif has_words_before() then
+              cmp.complete()
+            else
+              fallback()
+            end
+          end, { 'i', 'c' }),
+          ['<C-p>'] = cmp.mapping(function(fallback)
+            if cmp.visible() then
+              cmp.select_prev_item()
+            elseif has_words_before() then
+              cmp.complete()
+            else
+              fallback()
+            end
+          end, { 'i', 'c' }),
 
           -- Scroll the documentation window [b]ack / [f]orward
           ['<C-b>'] = cmp.mapping.scroll_docs(-4),
@@ -745,21 +866,58 @@ require('lazy').setup({
     -- change the command in the config to whatever the name of that colorscheme is.
     --
     -- If you want to see what colorschemes are already installed, you can use `:Telescope colorscheme`.
-    'folke/tokyonight.nvim',
+    -- NOTE(blukai): i don't like tokyonight
+    -- 'folke/tokyonight.nvim',
+    'stilla-theme/stilla.nvim',
+    -- 'ntk148v/komau.vim',
+    -- 'cranberry-clockworks/coal.nvim',
+    -- 'cideM/yui',
+    -- 'lunacookies/vim-plan9',
     priority = 1000, -- Make sure to load this before all the other start plugins.
     init = function()
       -- Load the colorscheme here.
       -- Like many other themes, this one has different styles, and you could load
       -- any other, such as 'tokyonight-storm', 'tokyonight-moon', or 'tokyonight-day'.
-      vim.cmd.colorscheme 'tokyonight-night'
+      -- NOTE(blukai): i don't like tokyonight
+      -- vim.cmd.colorscheme 'tokyonight-night'
+
+      vim.g.stilla_italic = false
+      vim.cmd.colorscheme 'stilla'
+
+      -- vim.opt.background = 'light'
+      -- vim.cmd.colorscheme 'komau'
+
+      -- vim.cmd.colorscheme 'coal'
+      -- vim.cmd 'hi CursorLine guibg=#262626' -- raisin_black
+      -- -- https://github.com/echasnovski/mini.statusline/blob/b1a8020aead3f12885aa539a46c07b02b036ac05/lua/mini/statusline.lua#L92C19-L92C41
+      -- vim.cmd 'hi MiniStatuslineFilename guifg=#CCCCCC' -- chinese_silver
+
+      -- vim.cmd.colorscheme 'yui'
+      -- -- NOTE(blukai): disable italics
+      -- vim.cmd.hi 'Comment gui=none cterm=none'
+      -- vim.cmd.hi 'mkItalic gui=none cterm=none'
+      -- vim.cmd.hi '@function.method.call gui=none cterm=none'
+      -- vim.cmd.hi '@function.call gui=none cterm=none'
+      -- vim.cmd.hi '@method.call gui=none cterm=none'
+      -- -- NOTE(blukai): disable underlines
+      -- vim.cmd.hi '@function gui=bold cterm=bold'
+      -- vim.cmd.hi '@method gui=bold cterm=bold'
+      -- vim.cmd.hi '@lsp.typemod.function.declaration gui=bold cterm=bold'
+      -- vim.cmd.hi '@lsp.typemod.member.declaration gui=bold cterm=bold'
+
+      -- vim.cmd.colorscheme 'plan9'
+      -- vim.cmd.hi 'Comment cterm=NONE gui=NONE'
+      -- vim.cmd.hi 'Folded cterm=NONE gui=NONE'
 
       -- You can configure highlights by doing something like:
-      vim.cmd.hi 'Comment gui=none'
+      -- NOTE(blukai): commented out followng like simply because idk what it does xd
+      -- vim.cmd.hi 'Comment gui=none'
     end,
   },
 
   -- Highlight todo, notes, etc in comments
-  { 'folke/todo-comments.nvim', event = 'VimEnter', dependencies = { 'nvim-lua/plenary.nvim' }, opts = { signs = false } },
+  -- NOTE(blukai): even though i kind of like it, i don't want to see it creating visual noise
+  -- { 'folke/todo-comments.nvim', event = 'VimEnter', dependencies = { 'nvim-lua/plenary.nvim' }, opts = { signs = false } },
 
   { -- Collection of various small independent plugins/modules
     'echasnovski/mini.nvim',
@@ -777,6 +935,8 @@ require('lazy').setup({
       -- - saiw) - [S]urround [A]dd [I]nner [W]ord [)]Paren
       -- - sd'   - [S]urround [D]elete [']quotes
       -- - sr)'  - [S]urround [R]eplace [)] [']
+      -- NOTE(blukai): sr( will add whitepsace between ( and the selection; sr)
+      -- will do the proper thing. see https://github.com/echasnovski/mini.nvim/issues/128
       require('mini.surround').setup()
 
       -- Simple and easy statusline.
@@ -802,7 +962,7 @@ require('lazy').setup({
     'nvim-treesitter/nvim-treesitter',
     build = ':TSUpdate',
     opts = {
-      ensure_installed = { 'bash', 'c', 'html', 'lua', 'luadoc', 'markdown', 'vim', 'vimdoc' },
+      ensure_installed = { 'bash', 'c', 'html', 'lua', 'luadoc', 'markdown', 'vim', 'vimdoc', 'jsdoc' },
       -- Autoinstall languages that are not installed
       auto_install = true,
       highlight = {
@@ -816,6 +976,18 @@ require('lazy').setup({
     },
     config = function(_, opts)
       -- [[ Configure Treesitter ]] See `:help nvim-treesitter`
+
+      -- NOTE(blukai): see https://github.com/ngalaiko/tree-sitter-go-template?tab=readme-ov-file#neovim-integration-using-nvim-treesitter
+      local parser_configs = require('nvim-treesitter.parsers').get_parser_configs()
+      ---@diagnostic disable-next-line: inject-field
+      parser_configs.gotmpl = {
+        install_info = {
+          url = 'https://github.com/ngalaiko/tree-sitter-go-template',
+          files = { 'src/parser.c' },
+        },
+        filetype = 'gotmpl',
+        used_by = { 'gohtmltmpl', 'gotexttmpl', 'gotmpl', 'yaml' },
+      }
 
       ---@diagnostic disable-next-line: missing-fields
       require('nvim-treesitter.configs').setup(opts)
@@ -848,6 +1020,30 @@ require('lazy').setup({
   --  Uncomment the following line and add your plugins to `lua/custom/plugins/*.lua` to get going.
   --    For additional information, see `:help lazy.nvim-lazy.nvim-structuring-your-plugins`
   -- { import = 'custom.plugins' },
+
+  -- NOTE(blukai): plugins below were discovered by me
+
+  {
+    'smoka7/hop.nvim',
+    opts = {},
+    keys = {
+      { '<leader>h', '<cmd>HopWord<CR>' },
+    },
+  },
+
+  {
+    'folke/zen-mode.nvim',
+    opts = {
+      window = {
+        width = 140,
+      },
+      plugins = {
+        options = {
+          laststatus = 3,
+        },
+      },
+    },
+  },
 }, {
   ui = {
     -- If you are using a Nerd Font: set icons to an empty table which will use the
@@ -872,3 +1068,17 @@ require('lazy').setup({
 
 -- The line beneath this is called `modeline`. See `:help modeline`
 -- vim: ts=2 sts=2 sw=2 et
+
+-- NOTE(bluka): following disables command line (but it'll appear once you neter command mode)
+vim.opt.cmdheight = 0
+
+-- NOTE(blukai): this is (atm) for nicer comment wrapping (default seems to be 100, which is wider then i prefer)
+vim.opt.textwidth = 80
+
+-- NOTE(blukai): following enables syntax highlighting in wgsl files.
+-- https://www.reddit.com/r/neovim/comments/1bfzqic/comment/kv7l4ap/
+vim.filetype.add {
+  pattern = {
+    ['.*%.wgsl'] = 'wgsl',
+  },
+}
