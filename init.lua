@@ -155,7 +155,8 @@ vim.opt.inccommand = 'split'
 vim.opt.cursorline = true
 
 -- Minimal number of screen lines to keep above and below the cursor.
-vim.opt.scrolloff = 10
+-- NOTE(blukai): this was set to 10, i did not like that.
+vim.opt.scrolloff = 0
 
 -- [[ Basic Keymaps ]]
 --  See `:help vim.keymap.set()`
@@ -194,6 +195,12 @@ vim.keymap.set('n', '<C-h>', '<C-w><C-h>', { desc = 'Move focus to the left wind
 vim.keymap.set('n', '<C-l>', '<C-w><C-l>', { desc = 'Move focus to the right window' })
 vim.keymap.set('n', '<C-j>', '<C-w><C-j>', { desc = 'Move focus to the lower window' })
 vim.keymap.set('n', '<C-k>', '<C-w><C-k>', { desc = 'Move focus to the upper window' })
+
+-- NOTE(blukai): this allows to resize vertical splits with ctrl+shift+direction
+vim.keymap.set('n', '<C-S-h>', ':vertical resize -1<CR>', { silent = true })
+vim.keymap.set('n', '<C-S-l>', ':vertical resize +1<CR>', { silent = true })
+vim.keymap.set('n', '<C-S-j>', ':horizontal resize -1<CR>', { silent = true })
+vim.keymap.set('n', '<C-S-k>', ':horizontal resize +1<CR>', { silent = true })
 
 -- [[ Basic Autocommands ]]
 --  See `:help lua-guide-autocommands`
@@ -616,10 +623,39 @@ require('lazy').setup({
       --  - settings (table): Override the default settings passed when initializing the server.
       --        For example, to see the options for `lua_ls`, you could go to: https://luals.github.io/wiki/settings/
       local servers = {
-        clangd = {},
-        gopls = {},
+        clangd = {
+          filetypes = { 'c', 'cpp' },
+        },
+        gopls = {
+          -- NOTE(blukai): for some reason gopls is interfearing with tsx stuff,
+          -- nanitf?
+          filetype = { 'go' },
+        },
         -- pyright = {},
-        rust_analyzer = {},
+        rust_analyzer = {
+          settings = {
+            ['rust-analyzer'] = {
+              cargo = {
+                -- NOTE(blukai): this enables all crate features. it makes so that code
+                -- that is behind feature flags is syntax highlighted and lsp
+                -- features work on it.
+                -- TOOD(blukai): once rust-analyzer.toml is somewhat stabilized
+                -- or at least functional - do this on a project level instead;
+                --
+                -- related issue: https://github.com/rust-lang/rust-analyzer/issues/13529
+                allFeatures = true,
+              },
+              rustfmt = {
+                -- NOTE(blukai): in rustfmt.toml i specify some settings that
+                -- are available only on nightly. this enables neovim to run
+                -- formatter with those settings.
+                --
+                -- see: https://github.com/rust-lang/rust-analyzer/issues/3627
+                extraArgs = { '+nightly' },
+              },
+            },
+          },
+        },
         -- ... etc. See `:help lspconfig-all` for a list of all the pre-configured LSPs
         --
         -- Some languages (like typescript) have entire language plugins that can be useful:
@@ -630,6 +666,8 @@ require('lazy').setup({
         --
         -- NOTE(blukai): added this
         -- wgsl_analyzer = {},
+        --
+        -- NOTE(blukai): :MasonUninstall zls to uninstall this crap
         zls = {},
 
         lua_ls = {
@@ -704,7 +742,13 @@ require('lazy').setup({
         -- Disable "format_on_save lsp_fallback" for languages that don't
         -- have a well standardized coding style. You can add additional
         -- languages here or re-enable it for the disabled ones.
-        local disable_filetypes = { c = true, cpp = true, wgsl = true }
+        local disable_filetypes = {
+          c = true,
+          cpp = true,
+          wgsl = true,
+          -- NOTE(blukai): zig,zls is fucking unsuable
+          -- zig = true,
+        }
         return {
           timeout_ms = 500,
           lsp_fallback = not disable_filetypes[vim.bo[bufnr].filetype],
@@ -861,58 +905,13 @@ require('lazy').setup({
     end,
   },
 
-  { -- You can easily change to a different colorscheme.
-    -- Change the name of the colorscheme plugin below, and then
-    -- change the command in the config to whatever the name of that colorscheme is.
-    --
-    -- If you want to see what colorschemes are already installed, you can use `:Telescope colorscheme`.
-    -- NOTE(blukai): i don't like tokyonight
-    -- 'folke/tokyonight.nvim',
+  {
     'stilla-theme/stilla.nvim',
-    -- 'ntk148v/komau.vim',
-    -- 'cranberry-clockworks/coal.nvim',
-    -- 'cideM/yui',
-    -- 'lunacookies/vim-plan9',
     priority = 1000, -- Make sure to load this before all the other start plugins.
-    init = function()
-      -- Load the colorscheme here.
-      -- Like many other themes, this one has different styles, and you could load
-      -- any other, such as 'tokyonight-storm', 'tokyonight-moon', or 'tokyonight-day'.
-      -- NOTE(blukai): i don't like tokyonight
-      -- vim.cmd.colorscheme 'tokyonight-night'
-
-      vim.g.stilla_italic = false
-      vim.cmd.colorscheme 'stilla'
-
-      -- vim.opt.background = 'light'
-      -- vim.cmd.colorscheme 'komau'
-
-      -- vim.cmd.colorscheme 'coal'
-      -- vim.cmd 'hi CursorLine guibg=#262626' -- raisin_black
-      -- -- https://github.com/echasnovski/mini.statusline/blob/b1a8020aead3f12885aa539a46c07b02b036ac05/lua/mini/statusline.lua#L92C19-L92C41
-      -- vim.cmd 'hi MiniStatuslineFilename guifg=#CCCCCC' -- chinese_silver
-
-      -- vim.cmd.colorscheme 'yui'
-      -- -- NOTE(blukai): disable italics
-      -- vim.cmd.hi 'Comment gui=none cterm=none'
-      -- vim.cmd.hi 'mkItalic gui=none cterm=none'
-      -- vim.cmd.hi '@function.method.call gui=none cterm=none'
-      -- vim.cmd.hi '@function.call gui=none cterm=none'
-      -- vim.cmd.hi '@method.call gui=none cterm=none'
-      -- -- NOTE(blukai): disable underlines
-      -- vim.cmd.hi '@function gui=bold cterm=bold'
-      -- vim.cmd.hi '@method gui=bold cterm=bold'
-      -- vim.cmd.hi '@lsp.typemod.function.declaration gui=bold cterm=bold'
-      -- vim.cmd.hi '@lsp.typemod.member.declaration gui=bold cterm=bold'
-
-      -- vim.cmd.colorscheme 'plan9'
-      -- vim.cmd.hi 'Comment cterm=NONE gui=NONE'
-      -- vim.cmd.hi 'Folded cterm=NONE gui=NONE'
-
-      -- You can configure highlights by doing something like:
-      -- NOTE(blukai): commented out followng like simply because idk what it does xd
-      -- vim.cmd.hi 'Comment gui=none'
-    end,
+  },
+  {
+    'lunacookies/vim-plan9',
+    priority = 1000, -- Make sure to load this before all the other start plugins.
   },
 
   -- Highlight todo, notes, etc in comments
@@ -1032,17 +1031,38 @@ require('lazy').setup({
   },
 
   {
-    'folke/zen-mode.nvim',
+    'shortcuts/no-neck-pain.nvim',
+    lazy = false,
     opts = {
-      window = {
-        width = 140,
-      },
-      plugins = {
-        options = {
-          laststatus = 3,
-        },
+      width = 140,
+      autocmds = {
+        enableOnVimEnter = true,
       },
     },
+  },
+
+  -- NOTE(blukai): am i going to regret this?
+  {
+    'pmizio/typescript-tools.nvim',
+    ft = { 'javascript', 'typescript', 'javascriptreact', 'typescriptreact' },
+    dependencies = { 'nvim-lua/plenary.nvim', 'neovim/nvim-lspconfig' },
+    opts = {},
+  },
+
+  -- NOTE(blukai): this allows to convert snake to camel case, and other
+  -- variations..
+  {
+    'johmsalas/text-case.nvim',
+    config = function()
+      require('textcase').setup {}
+      require('telescope').load_extension 'textcase'
+    end,
+    keys = { { '<leader>tc', mode = { 'v' }, '<cmd>TextCaseOpenTelescope<CR>', desc = 'Telescope text-case' } },
+    cmd = { 'TextCaseOpenTelescope' },
+  },
+
+  {
+    'nvim-pack/nvim-spectre',
   },
 }, {
   ui = {
@@ -1082,3 +1102,44 @@ vim.filetype.add {
     ['.*%.wgsl'] = 'wgsl',
   },
 }
+
+-- NOTE(blukai): by shitty colorscheme configuration code ...
+
+local function configure_colorscheme_pre(match)
+  if match == 'stilla' then
+    vim.o.background = 'dark'
+    vim.g.stilla_italic = false
+  elseif match == 'plan9' then
+    vim.o.background = 'light'
+  end
+end
+
+local function configure_colorscheme_post(match)
+  if match == 'stilla' then
+    -- NOTE(blukai): stilla's selection color is invisible to me
+    vim.cmd.hi 'Visual guifg=White guibg=DarkBlue gui=none'
+  elseif match == 'plan9' then
+    vim.cmd.hi 'Comment cterm=NONE gui=NONE'
+    vim.cmd.hi 'Folded cterm=NONE gui=NONE'
+  end
+end
+
+vim.api.nvim_create_autocmd('ColorSchemePre', {
+  group = vim.api.nvim_create_augroup('UserUolorSchemePre', {}),
+  callback = function(ev)
+    configure_colorscheme_pre(ev.match)
+  end,
+})
+
+vim.api.nvim_create_autocmd('ColorScheme', {
+  group = vim.api.nvim_create_augroup('UserColorSchemePost', {}),
+  callback = function(ev)
+    configure_colorscheme_post(ev.match)
+  end,
+})
+
+-- TODO: figure out how to make colorscheme that is selected via telescope
+-- persist between restarts + update in all open neovim instances.
+configure_colorscheme_pre 'stilla'
+vim.cmd.colorscheme 'stilla'
+configure_colorscheme_post 'stilla'
