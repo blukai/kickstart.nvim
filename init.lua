@@ -156,7 +156,8 @@ vim.opt.cursorline = true
 
 -- Minimal number of screen lines to keep above and below the cursor.
 -- NOTE(blukai): this was set to 10, i did not like that.
-vim.opt.scrolloff = 0
+-- NOTE(blukai): 10 is not that bad actually.
+vim.opt.scrolloff = 10
 
 -- [[ Basic Keymaps ]]
 --  See `:help vim.keymap.set()`
@@ -307,44 +308,7 @@ require('lazy').setup({
     'folke/which-key.nvim',
     event = 'VimEnter', -- Sets the loading event to 'VimEnter'
     config = function() -- This is the function that runs, AFTER loading
-      require('which-key').setup {
-        icons = {
-          -- set icon mappings to true if you have a Nerd Font
-          mappings = vim.g.have_nerd_font,
-          -- If you are using a Nerd Font: set icons.keys to an empty table which will use the
-          -- default whick-key.nvim defined Nerd Font icons, otherwise define a string table
-          keys = vim.g.have_nerd_font and {} or {
-            Up = '<Up> ',
-            Down = '<Down> ',
-            Left = '<Left> ',
-            Right = '<Right> ',
-            C = '<C-…> ',
-            M = '<M-…> ',
-            D = '<D-…> ',
-            S = '<S-…> ',
-            CR = '<CR> ',
-            Esc = '<Esc> ',
-            ScrollWheelDown = '<ScrollWheelDown> ',
-            ScrollWheelUp = '<ScrollWheelUp> ',
-            NL = '<NL> ',
-            BS = '<BS> ',
-            Space = '<Space> ',
-            Tab = '<Tab> ',
-            F1 = '<F1>',
-            F2 = '<F2>',
-            F3 = '<F3>',
-            F4 = '<F4>',
-            F5 = '<F5>',
-            F6 = '<F6>',
-            F7 = '<F7>',
-            F8 = '<F8>',
-            F9 = '<F9>',
-            F10 = '<F10>',
-            F11 = '<F11>',
-            F12 = '<F12>',
-          },
-        },
-      }
+      require('which-key').setup {}
 
       -- Document existing key chains
       require('which-key').add {
@@ -388,7 +352,9 @@ require('lazy').setup({
       { 'nvim-telescope/telescope-ui-select.nvim' },
 
       -- Useful for getting pretty icons, but requires a Nerd Font.
-      { 'nvim-tree/nvim-web-devicons', enabled = vim.g.have_nerd_font },
+      --
+      -- NOTE(blukai): i don't want icons!
+      -- { 'nvim-tree/nvim-web-devicons', enabled = vim.g.have_nerd_font },
 
       -- NOTE(blukai): telescope-live-grep-args.nvim extension allows to use
       -- ripgrep's arguments in search queries (for example specifying
@@ -439,6 +405,13 @@ require('lazy').setup({
           -- NOTE(blukai): following line loads telescope-live-grep-args.nvim
           -- extension
           ['live_grep_args'] = {},
+        },
+        defaults = {
+          preview = {
+            -- NOTE(blukai): this makes file search faster.
+            -- see https://github.com/nvim-telescope/telescope.nvim/issues/1379#issuecomment-996590765
+            treesitter = false,
+          },
         },
       }
 
@@ -498,10 +471,6 @@ require('lazy').setup({
       -- Useful status updates for LSP.
       -- NOTE: `opts = {}` is the same as calling `require('fidget').setup({})`
       { 'j-hui/fidget.nvim', opts = {} },
-
-      -- `neodev` configures Lua LSP for your Neovim config, runtime and plugins
-      -- used for completion, annotations and signatures of Neovim apis
-      { 'folke/neodev.nvim', opts = {} },
     },
     config = function()
       -- Brief aside: **What is LSP?**
@@ -586,32 +555,33 @@ require('lazy').setup({
           --  For example, in C this would take you to the header.
           map('gD', vim.lsp.buf.declaration, '[G]oto [D]eclaration')
 
+          -- NOTE(blukai): this shit is hella distractive!
+          --
           -- The following two autocommands are used to highlight references of the
           -- word under your cursor when your cursor rests there for a little while.
           --    See `:help CursorHold` for information about when this is executed
           --
           -- When you move your cursor, the highlights will be cleared (the second autocommand).
-          local client = vim.lsp.get_client_by_id(event.data.client_id)
-          if client and client.server_capabilities.documentHighlightProvider then
-            vim.api.nvim_create_autocmd({ 'CursorHold', 'CursorHoldI' }, {
-              buffer = event.buf,
-              callback = vim.lsp.buf.document_highlight,
-            })
-
-            vim.api.nvim_create_autocmd({ 'CursorMoved', 'CursorMovedI' }, {
-              buffer = event.buf,
-              callback = vim.lsp.buf.clear_references,
-            })
-          end
+          -- local client = vim.lsp.get_client_by_id(event.data.client_id)
+          -- if client and client.server_capabilities.documentHighlightProvider then
+          --   vim.api.nvim_create_autocmd({ 'CursorHold', 'CursorHoldI' }, {
+          --     buffer = event.buf,
+          --     callback = vim.lsp.buf.document_highlight,
+          --   })
+          --
+          --   vim.api.nvim_create_autocmd({ 'CursorMoved', 'CursorMovedI' }, {
+          --     buffer = event.buf,
+          --     callback = vim.lsp.buf.clear_references,
+          --   })
+          -- end
         end,
       })
 
       -- LSP servers and clients are able to communicate to each other what features they support.
       --  By default, Neovim doesn't support everything that is in the LSP specification.
-      --  When you add nvim-cmp, luasnip, etc. Neovim now has *more* capabilities.
-      --  So, we create new capabilities with nvim cmp, and then broadcast that to the servers.
-      local capabilities = vim.lsp.protocol.make_client_capabilities()
-      capabilities = vim.tbl_deep_extend('force', capabilities, require('cmp_nvim_lsp').default_capabilities())
+      --  When you add blink.cmp, luasnip, etc. Neovim now has *more* capabilities.
+      --  So, we create new capabilities with blink.cmp, and then broadcast that to the servers.
+      local capabilities = require('blink.cmp').get_lsp_capabilities()
 
       -- Enable the following language servers
       --  Feel free to add/remove any LSPs that you want here. They will automatically be installed.
@@ -639,19 +609,12 @@ require('lazy').setup({
                 -- NOTE(blukai): this enables all crate features. it makes so that code
                 -- that is behind feature flags is syntax highlighted and lsp
                 -- features work on it.
+                --
                 -- TOOD(blukai): once rust-analyzer.toml is somewhat stabilized
                 -- or at least functional - do this on a project level instead;
                 --
                 -- related issue: https://github.com/rust-lang/rust-analyzer/issues/13529
                 allFeatures = true,
-              },
-              rustfmt = {
-                -- NOTE(blukai): in rustfmt.toml i specify some settings that
-                -- are available only on nightly. this enables neovim to run
-                -- formatter with those settings.
-                --
-                -- see: https://github.com/rust-lang/rust-analyzer/issues/3627
-                extraArgs = { '+nightly' },
               },
             },
           },
@@ -702,6 +665,9 @@ require('lazy').setup({
         -- NOTE(blukai): added this; gofumpt can also be configured in gopls,
         -- but not golines. see other related comment for more info (search for
         -- golines).
+        -- ----
+        -- NOTE(blukai): disabled because i don't want to break existing (not my)
+        -- projects
         'gofumpt',
         'goimports',
         'golines',
@@ -766,143 +732,116 @@ require('lazy').setup({
         -- NOTE(blukai): added this instead of relying on gopls. the issue with
         -- gopls is that it runs go fmt (it has integration with gofumpt!),
         -- goimports, but it does not integrate with golines.
+        -- ----
+        -- NOTE(blukai): disabled this because i don't want to break existing
+        -- (not my) go projects.
         go = { 'gofumpt', 'goimports', 'golines' },
+        -- -- NOTE(blukai): this goes in hand with rustfmt in formatters down
+        -- -- below.
+        -- rust = { 'rustfmt' },
       },
       formatters = {
+        -- NOTE(blukai): disabled this because i don't want to break existing (not my) go
+        -- projects.
         golines = {
           -- golines will use goimports as base formatter by default which is slow.
           -- see https://github.com/segmentio/golines/issues/33
           prepend_args = { '--base-formatter=gofumpt', '--ignore-generated', '--max-len=100' },
         },
+        -- rustfmt = {
+        --   command = 'rustfmt',
+        --   args = {
+        --     -- NOTE(blukai): in rustfmt.toml i specify some settings that
+        --     -- are available only on nightly. this enables neovim to run
+        --     -- formatter with those settings.
+        --     -- see: https://github.com/rust-lang/rust-analyzer/issues/3627
+        --     '+nightly',
+        --   },
+        -- },
       },
     },
   },
 
   { -- Autocompletion
-    'hrsh7th/nvim-cmp',
-    event = 'InsertEnter',
+    'saghen/blink.cmp',
+    event = 'VimEnter',
+    version = '1.*',
     dependencies = {
-      -- Snippet Engine & its associated nvim-cmp source
-      {
-        'L3MON4D3/LuaSnip',
-        build = (function()
-          -- Build Step is needed for regex support in snippets.
-          -- This step is not supported in many windows environments.
-          -- Remove the below condition to re-enable on windows.
-          if vim.fn.has 'win32' == 1 or vim.fn.executable 'make' == 0 then
-            return
-          end
-          return 'make install_jsregexp'
-        end)(),
-        dependencies = {
-          -- `friendly-snippets` contains a variety of premade snippets.
-          --    See the README about individual language/framework/plugin snippets:
-          --    https://github.com/rafamadriz/friendly-snippets
-          -- {
-          --   'rafamadriz/friendly-snippets',
-          --   config = function()
-          --     require('luasnip.loaders.from_vscode').lazy_load()
-          --   end,
-          -- },
-        },
-      },
-      'saadparwaiz1/cmp_luasnip',
-
-      -- Adds other completion capabilities.
-      --  nvim-cmp does not ship with all sources by default. They are split
-      --  into multiple repos for maintenance purposes.
-      'hrsh7th/cmp-nvim-lsp',
-      'hrsh7th/cmp-path',
+      'folke/lazydev.nvim',
     },
-    config = function()
-      -- See `:help cmp`
-      local cmp = require 'cmp'
-      local luasnip = require 'luasnip'
-      luasnip.config.setup {}
-
-      cmp.setup {
-        snippet = {
-          expand = function(args)
-            luasnip.lsp_expand(args.body)
-          end,
-        },
-        completion = {
-          completeopt = 'menu,menuone,noinsert',
-          -- NOTE(blukai): disabled autocompletion because it's more in a way
-          -- then it's helpful really.
-          autocomplete = false,
-        },
-
-        -- For an understanding of why these mappings were
-        -- chosen, you will need to read `:help ins-completion`
+    --- @module 'blink.cmp'
+    --- @type blink.cmp.Config
+    opts = {
+      keymap = {
+        -- 'default' (recommended) for mappings similar to built-in completions
+        --   <c-y> to accept ([y]es) the completion.
+        --    This will auto-import if your LSP supports it.
+        --    This will expand snippets if the LSP sent a snippet.
+        -- 'super-tab' for tab to accept
+        -- 'enter' for enter to accept
+        -- 'none' for no mappings
+        --
+        -- For an understanding of why the 'default' preset is recommended,
+        -- you will need to read `:help ins-completion`
         --
         -- No, but seriously. Please read `:help ins-completion`, it is really good!
-        mapping = cmp.mapping.preset.insert {
-          -- NOTE(blukai): when i disabled autocompletion c-n and c-p from
-          -- kickstart stopped working as expected. found this here
-          -- https://sourcegraph.com/github.com/alfunx/.dotfiles@2d22e8de8a63432909c005991698b41ab39b6f7f/-/blob/.vim/lua/config_cmp.lua?L42
-          ['<C-n>'] = cmp.mapping(function(fallback)
-            if cmp.visible() then
-              cmp.select_next_item()
-            elseif has_words_before() then
-              cmp.complete()
-            else
-              fallback()
-            end
-          end, { 'i', 'c' }),
-          ['<C-p>'] = cmp.mapping(function(fallback)
-            if cmp.visible() then
-              cmp.select_prev_item()
-            elseif has_words_before() then
-              cmp.complete()
-            else
-              fallback()
-            end
-          end, { 'i', 'c' }),
+        --
+        -- All presets have the following mappings:
+        -- <tab>/<s-tab>: move to right/left of your snippet expansion
+        -- <c-space>: Open menu or open docs if already open
+        -- <c-n>/<c-p> or <up>/<down>: Select next/previous item
+        -- <c-e>: Hide menu
+        -- <c-k>: Toggle signature help
+        --
+        -- See :h blink-cmp-config-keymap for defining your own keymap
+        preset = 'default',
 
-          -- Scroll the documentation window [b]ack / [f]orward
-          ['<C-b>'] = cmp.mapping.scroll_docs(-4),
-          ['<C-f>'] = cmp.mapping.scroll_docs(4),
+        -- For more advanced Luasnip keymaps (e.g. selecting choice nodes, expansion) see:
+        --    https://github.com/L3MON4D3/LuaSnip?tab=readme-ov-file#keymaps
+      },
 
-          -- Accept ([y]es) the completion.
-          --  This will auto-import if your LSP supports it.
-          --  This will expand snippets if the LSP sent a snippet.
-          ['<C-y>'] = cmp.mapping.confirm { select = true },
+      appearance = {
+        -- 'mono' (default) for 'Nerd Font Mono' or 'normal' for 'Nerd Font'
+        -- Adjusts spacing to ensure icons are aligned
+        --
+        -- NOTE(blukai): i don't want icons!
+        -- nerd_font_variant = 'mono',
+      },
 
-          -- Manually trigger a completion from nvim-cmp.
-          --  Generally you don't need this, because nvim-cmp will display
-          --  completions whenever it has completion options available.
-          ['<C-Space>'] = cmp.mapping.complete {},
-
-          -- Think of <c-l> as moving to the right of your snippet expansion.
-          --  So if you have a snippet that's like:
-          --  function $name($args)
-          --    $body
-          --  end
-          --
-          -- <c-l> will move you to the right of each of the expansion locations.
-          -- <c-h> is similar, except moving you backwards.
-          ['<C-l>'] = cmp.mapping(function()
-            if luasnip.expand_or_locally_jumpable() then
-              luasnip.expand_or_jump()
-            end
-          end, { 'i', 's' }),
-          ['<C-h>'] = cmp.mapping(function()
-            if luasnip.locally_jumpable(-1) then
-              luasnip.jump(-1)
-            end
-          end, { 'i', 's' }),
-
-          -- For more advanced Luasnip keymaps (e.g. selecting choice nodes, expansion) see:
-          --    https://github.com/L3MON4D3/LuaSnip?tab=readme-ov-file#keymaps
+      completion = {
+        -- NOTE(blukai): auto completins are super distructive
+        trigger = {
+          prefetch_on_insert = false,
+          show_in_snippet = false,
+          show_on_keyword = false,
+          show_on_trigger_character = false,
+          show_on_accept_on_trigger_character = false,
+          show_on_insert_on_trigger_character = false,
         },
-        sources = {
-          { name = 'nvim_lsp' },
-          { name = 'luasnip' },
-          { name = 'path' },
+        documentation = { auto_show = false },
+        menu = { auto_show = false },
+      },
+
+      sources = {
+        default = { 'lsp', 'path', 'snippets', 'lazydev' },
+        providers = {
+          lazydev = { module = 'lazydev.integrations.blink', score_offset = 100 },
         },
-      }
-    end,
+      },
+
+      -- Blink.cmp includes an optional, recommended rust fuzzy matcher,
+      -- which automatically downloads a prebuilt binary when enabled.
+      --
+      -- By default, we use the Lua implementation instead, but you may enable
+      -- the rust implementation via `'prefer_rust_with_warning'`
+      --
+      -- See :h blink-cmp-config-fuzzy for more information
+      fuzzy = { implementation = 'lua' },
+
+      -- Shows a signature help window while you type arguments for a function
+      -- NOTE(blukai): another annoyance
+      -- signature = { enabled = true },
+    },
   },
 
   {
@@ -913,10 +852,10 @@ require('lazy').setup({
     'lunacookies/vim-plan9',
     priority = 1000, -- Make sure to load this before all the other start plugins.
   },
-
-  -- Highlight todo, notes, etc in comments
-  -- NOTE(blukai): even though i kind of like it, i don't want to see it creating visual noise
-  -- { 'folke/todo-comments.nvim', event = 'VimEnter', dependencies = { 'nvim-lua/plenary.nvim' }, opts = { signs = false } },
+  {
+    'tek256/simple-dark',
+    priority = 1000, -- Make sure to load this before all the other start plugins.
+  },
 
   { -- Collection of various small independent plugins/modules
     'echasnovski/mini.nvim',
@@ -942,8 +881,12 @@ require('lazy').setup({
       --  You could remove this setup call if you don't like it,
       --  and try some other statusline plugin
       local statusline = require 'mini.statusline'
-      -- set use_icons to true if you have a Nerd Font
-      statusline.setup { use_icons = vim.g.have_nerd_font }
+      statusline.setup {
+        -- set use_icons to true if you have a Nerd Font
+        --
+        -- NOTE(blukai): i don't want icons!
+        use_icons = false,
+      }
 
       -- You can configure sections in the statusline by overriding their
       -- default behavior. For example, here we set the section for
@@ -1026,7 +969,7 @@ require('lazy').setup({
     'smoka7/hop.nvim',
     opts = {},
     keys = {
-      { '<leader>h', '<cmd>HopWord<CR>' },
+      { 'f', '<cmd>HopWord<CR>' },
     },
   },
 
@@ -1041,14 +984,6 @@ require('lazy').setup({
     },
   },
 
-  -- NOTE(blukai): am i going to regret this?
-  {
-    'pmizio/typescript-tools.nvim',
-    ft = { 'javascript', 'typescript', 'javascriptreact', 'typescriptreact' },
-    dependencies = { 'nvim-lua/plenary.nvim', 'neovim/nvim-lspconfig' },
-    opts = {},
-  },
-
   -- NOTE(blukai): this allows to convert snake to camel case, and other
   -- variations..
   {
@@ -1061,30 +996,12 @@ require('lazy').setup({
     cmd = { 'TextCaseOpenTelescope' },
   },
 
+  -- NOTE(blukai): this is very cool shit for case-replicating search-replace
+  -- with :%Subvert/a/b/
   {
-    'nvim-pack/nvim-spectre',
+    'tpope/vim-abolish',
   },
-}, {
-  ui = {
-    -- If you are using a Nerd Font: set icons to an empty table which will use the
-    -- default lazy.nvim defined Nerd Font icons, otherwise define a unicode icons table
-    icons = vim.g.have_nerd_font and {} or {
-      cmd = '⌘',
-      config = '🛠',
-      event = '📅',
-      ft = '📂',
-      init = '⚙',
-      keys = '🗝',
-      plugin = '🔌',
-      runtime = '💻',
-      require = '🌙',
-      source = '📄',
-      start = '🚀',
-      task = '📌',
-      lazy = '💤 ',
-    },
-  },
-})
+}, {})
 
 -- The line beneath this is called `modeline`. See `:help modeline`
 -- vim: ts=2 sts=2 sw=2 et
@@ -1095,6 +1012,10 @@ vim.opt.cmdheight = 0
 -- NOTE(blukai): this is (atm) for nicer comment wrapping (default seems to be 100, which is wider then i prefer)
 vim.opt.textwidth = 80
 
+-- NOTE(blukai): i really don't want to see wrapped lines. they confuse shit out
+-- of me.
+vim.opt.wrap = false
+
 -- NOTE(blukai): following enables syntax highlighting in wgsl files.
 -- https://www.reddit.com/r/neovim/comments/1bfzqic/comment/kv7l4ap/
 vim.filetype.add {
@@ -1103,7 +1024,7 @@ vim.filetype.add {
   },
 }
 
--- NOTE(blukai): by shitty colorscheme configuration code ...
+-- NOTE(blukai): my shitty colorscheme configuration code ...
 
 local function configure_colorscheme_pre(match)
   if match == 'stilla' then
@@ -1121,11 +1042,24 @@ local function configure_colorscheme_post(match)
   elseif match == 'plan9' then
     vim.cmd.hi 'Comment cterm=NONE gui=NONE'
     vim.cmd.hi 'Folded cterm=NONE gui=NONE'
+  elseif match == 'simple-dark' then
+    -- list of unique shades of gray in this color scheme:
+    -- #080808
+    -- #0a0a0a
+    -- #303030
+    -- #585858
+    -- #8a8a8a
+    -- #bcbcbc
+    -- #d0d0d0
+    -- #eeeeee
+    vim.cmd.hi 'Search guibg=#8a8a8a guifg=#080808'
+  elseif match == 'quiet' then
+    vim.cmd.hi 'Comment gui=NONE'
   end
 end
 
 vim.api.nvim_create_autocmd('ColorSchemePre', {
-  group = vim.api.nvim_create_augroup('UserUolorSchemePre', {}),
+  group = vim.api.nvim_create_augroup('UserColorSchemePre', {}),
   callback = function(ev)
     configure_colorscheme_pre(ev.match)
   end,
@@ -1140,6 +1074,11 @@ vim.api.nvim_create_autocmd('ColorScheme', {
 
 -- TODO: figure out how to make colorscheme that is selected via telescope
 -- persist between restarts + update in all open neovim instances.
-configure_colorscheme_pre 'stilla'
-vim.cmd.colorscheme 'stilla'
-configure_colorscheme_post 'stilla'
+configure_colorscheme_pre 'quiet'
+vim.cmd.colorscheme 'quiet'
+configure_colorscheme_post 'quiet'
+
+-- NOTE(blukai): disable semantic highlights globally
+for _, group in ipairs(vim.fn.getcompletion('@lsp', 'highlight')) do
+  vim.api.nvim_set_hl(0, group, {})
+end
